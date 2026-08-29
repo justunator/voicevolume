@@ -1,3 +1,5 @@
+import AudioRecorder from "./components/AudioRecorder.tsx";
+
 function App() {
   return (
     <div className="min-h-screen p-4 flex justify-between flex-col gap-4">
