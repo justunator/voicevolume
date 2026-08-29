@@ -2,10 +2,10 @@
 This web application will be used in the classroom to help young students visualize their volume level.
 
 ## Dev Split
-### Left Half  
+### justunator  
   - User will interface with the web mic API to gather volume data in a readable format from the computer.
   - Zones will be set from the data with a slim algorithm.
-### Right Half
+### marshy8
   - User will create the visual page interface that will change accordingly with the **Left Half** data.
   - A start and end button will be present.
 
