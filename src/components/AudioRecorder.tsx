@@ -1,84 +1,86 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-
-export interface AudioRecorderHandle {
-  start: () => void;
-  stop: () => void;
-}
+import { useRef, useState } from "react";
 
 interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
 }
 
-const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
-  function AudioRecorder({ onRecordingChange }, ref) {
-    const mediaRecorder = useRef<MediaRecorder | null>(null);
-    const audioChunks = useRef<Blob[]>([]);
+function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
 
-    const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
 
-    async function startRecording() {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+  async function startRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    });
+
+    mediaRecorder.current = new MediaRecorder(stream);
+
+    audioChunks.current = [];
+
+    mediaRecorder.current.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.current.push(event.data);
+      }
+    };
+
+    mediaRecorder.current.onstop = () => {
+      const audioBlob = new Blob(audioChunks.current, {
+        type: "audio/webm",
       });
 
-      mediaRecorder.current = new MediaRecorder(stream);
+      const url = URL.createObjectURL(audioBlob);
+      setAudioURL(url);
 
-      audioChunks.current = [];
+      // stop microphone access
+      stream.getTracks().forEach((track) => track.stop());
+    };
 
-      mediaRecorder.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.current.push(event.data);
-        }
-      };
+    mediaRecorder.current.start();
+    onRecordingChange?.(true);
+    setRecording(true);
+  }
 
-      mediaRecorder.current.onstop = () => {
-        const audioBlob = new Blob(audioChunks.current, {
-          type: "audio/webm",
-        });
-
-        const url = URL.createObjectURL(audioBlob);
-        setAudioURL(url);
-
-        // stop microphone access
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.current.start();
-      onRecordingChange?.(true);
+  function stopRecording() {
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+      onRecordingChange?.(false);
+      setRecording(false);
     }
+  }
 
-    function stopRecording() {
-      if (mediaRecorder.current) {
-        mediaRecorder.current.stop();
-        onRecordingChange?.(false);
-      }
-    }
+  return (
+    <div>
+      <h2>Audio Recorder</h2>
 
-    useImperativeHandle(ref, () => ({
-      start: startRecording,
-      stop: stopRecording,
-    }));
+      <button
+        className={`text-black outline rounded-md p-4 disabled:opacity-50 ${
+          recording
+            ? "bg-red-500 hover:bg-red-300 disabled:hover:bg-red-500"
+            : "bg-green-500 hover:bg-green-300 disabled:hover:bg-green-500"
+        }`}
+        onClick={recording ? stopRecording : startRecording}
+      >
+        {recording ? "Stop" : "Start"}
+      </button>
 
-    return (
-      <div>
-        <h2>Audio Recorder</h2>
+      {audioURL && (
+        <div>
+          <h3>Your recording:</h3>
 
-        {audioURL && (
-          <div>
-            <h3>Your recording:</h3>
+          <audio controls src={audioURL} />
 
-            <audio controls src={audioURL} />
+          <br />
 
-            <br />
-
-            <a href={audioURL} download="recording.webm">
-              Download
-            </a>
-          </div>
-        )}
-      </div>
-    );
-  },
-);
+          <a href={audioURL} download="recording.webm">
+            Download
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default AudioRecorder;
