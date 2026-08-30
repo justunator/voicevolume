@@ -13,3 +13,6 @@ This web application will be used in the classroom to help young students visual
     npm install
     npm run dev 
 figure it out on your own if you have version mismatch, you can do it, you are kenough
+
+## Resources
+- [MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
