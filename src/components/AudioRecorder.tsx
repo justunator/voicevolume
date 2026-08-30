@@ -1,75 +1,84 @@
-import { useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
-function AudioRecorder() {
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
+export interface AudioRecorderHandle {
+  start: () => void;
+  stop: () => void;
+}
 
-  const [recording, setRecording] = useState(false);
-  const [audioURL, setAudioURL] = useState<string | null>(null);
+interface AudioRecorderProps {
+  onRecordingChange?: (recording: boolean) => void;
+}
 
-  async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-    });
+const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
+  function AudioRecorder({ onRecordingChange }, ref) {
+    const mediaRecorder = useRef<MediaRecorder | null>(null);
+    const audioChunks = useRef<Blob[]>([]);
 
-    mediaRecorder.current = new MediaRecorder(stream);
+    const [audioURL, setAudioURL] = useState<string | null>(null);
 
-    audioChunks.current = [];
-
-    mediaRecorder.current.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.current.push(event.data);
-      }
-    };
-
-    mediaRecorder.current.onstop = () => {
-      const audioBlob = new Blob(audioChunks.current, {
-        type: "audio/webm",
+    async function startRecording() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
       });
 
-      const url = URL.createObjectURL(audioBlob);
-      setAudioURL(url);
+      mediaRecorder.current = new MediaRecorder(stream);
 
-      // stop microphone access
-      stream.getTracks().forEach((track) => track.stop());
-    };
+      audioChunks.current = [];
 
-    mediaRecorder.current.start();
-    setRecording(true);
-  }
+      mediaRecorder.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.current.push(event.data);
+        }
+      };
 
-  function stopRecording() {
-    if (mediaRecorder.current) {
-      mediaRecorder.current.stop();
-      setRecording(false);
+      mediaRecorder.current.onstop = () => {
+        const audioBlob = new Blob(audioChunks.current, {
+          type: "audio/webm",
+        });
+
+        const url = URL.createObjectURL(audioBlob);
+        setAudioURL(url);
+
+        // stop microphone access
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.current.start();
+      onRecordingChange?.(true);
     }
-  }
 
-  return (
-    <div>
-      <h2>Audio Recorder</h2>
+    function stopRecording() {
+      if (mediaRecorder.current) {
+        mediaRecorder.current.stop();
+        onRecordingChange?.(false);
+      }
+    }
 
-      {!recording ? (
-        <button onClick={startRecording}>Start Recording</button>
-      ) : (
-        <button onClick={stopRecording}>Stop Recording</button>
-      )}
+    useImperativeHandle(ref, () => ({
+      start: startRecording,
+      stop: stopRecording,
+    }));
 
-      {audioURL && (
-        <div>
-          <h3>Your recording:</h3>
+    return (
+      <div>
+        <h2>Audio Recorder</h2>
 
-          <audio controls src={audioURL} />
+        {audioURL && (
+          <div>
+            <h3>Your recording:</h3>
 
-          <br />
+            <audio controls src={audioURL} />
 
-          <a href={audioURL} download='recording.webm'>
-            Download
-          </a>
-        </div>
-      )}
-    </div>
-  );
-}
+            <br />
+
+            <a href={audioURL} download="recording.webm">
+              Download
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
 
 export default AudioRecorder;
