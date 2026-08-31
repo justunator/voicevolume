@@ -1,12 +1,6 @@
-import { useRef, useState } from "react";
-import AudioRecorder, {
-  type AudioRecorderHandle,
-} from "./components/AudioRecorder.tsx";
+import AudioRecorder from "./components/AudioRecorder.tsx";
 
 function App() {
-  const recorderRef = useRef<AudioRecorderHandle>(null);
-  const [recording, setRecording] = useState(false);
-
   return (
     <div className="min-h-screen p-4 flex justify-between flex-col gap-4">
       <label className="text-4xl">VoiceVolume</label>
@@ -16,28 +10,7 @@ function App() {
       </div>
 
       <div className="flex justify-center gap-4">
-        {" "}
-        {!recording ? (
-          <button
-            className="text-black outline rounded-md bg-green-500 hover:bg-green-300 disabled:opacity-50 disabled:hover:bg-green-500 p-4"
-            onClick={() => recorderRef.current?.start()}
-          >
-            {" "}
-            Start{" "}
-          </button>
-        ) : (
-          <button
-            className="text-black outline rounded-md bg-red-500 hover:bg-red-300 disabled:opacity-50 disabled:hover:bg-red-500 p-4"
-            onClick={() => recorderRef.current?.stop()}
-          >
-            {" "}
-            Stop{" "}
-          </button>
-        )}{" "}
-      </div>
-
-      <div className="flex justify-center gap-4">
-        <AudioRecorder ref={recorderRef} onRecordingChange={setRecording} />
+        <AudioRecorder />
       </div>
 
       <label className="flex justify-center gap-1">

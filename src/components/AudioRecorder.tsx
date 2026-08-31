@@ -1,84 +1,143 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-
-export interface AudioRecorderHandle {
-  start: () => void;
-  stop: () => void;
-}
+import { useRef, useState } from "react";
+import AnalyticsModel from "./AnalyticsModel.tsx";
 
 interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
 }
 
-const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>(
-  function AudioRecorder({ onRecordingChange }, ref) {
-    const mediaRecorder = useRef<MediaRecorder | null>(null);
-    const audioChunks = useRef<Blob[]>([]);
+const SAMPLE_INTERVAL_MS = 500;
 
-    const [audioURL, setAudioURL] = useState<string | null>(null);
+function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
 
-    async function startRecording() {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+  const audioContext = useRef<AudioContext | null>(null);
+  const analyserNode = useRef<AnalyserNode | null>(null);
+  const audioArray = useRef<number[]>([]);
+
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [peaks, setPeaks] = useState<number[]>([]);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  function sampleAudioPeaks() {
+    if (analyserNode.current === null) {
+      return;
+    }
+
+    const uInt8Array = new Uint8Array(analyserNode.current.fftSize);
+
+    analyserNode.current.getByteTimeDomainData(uInt8Array);
+
+    const maxDistance = uInt8Array.reduce((max, sample) => {
+      const distance = Math.abs(sample - 128);
+      return Math.max(max, distance);
+    }, 0);
+
+    audioArray.current.push(maxDistance / 128);
+
+    if (mediaRecorder.current?.state === "recording") {
+      setTimeout(sampleAudioPeaks, SAMPLE_INTERVAL_MS);
+    }
+  }
+
+  async function startRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    });
+
+    mediaRecorder.current = new MediaRecorder(stream);
+
+    audioContext.current = new AudioContext();
+    const source = audioContext.current.createMediaStreamSource(stream);
+    analyserNode.current = audioContext.current.createAnalyser();
+    source.connect(analyserNode.current);
+    audioArray.current = [];
+
+    audioChunks.current = [];
+
+    mediaRecorder.current.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.current.push(event.data);
+      }
+    };
+
+    mediaRecorder.current.onstop = () => {
+      const audioBlob = new Blob(audioChunks.current, {
+        type: "audio/webm",
       });
 
-      mediaRecorder.current = new MediaRecorder(stream);
+      const url = URL.createObjectURL(audioBlob);
+      setAudioURL(url);
 
-      audioChunks.current = [];
+      setPeaks(audioArray.current);
+      setShowAnalytics(true);
 
-      mediaRecorder.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.current.push(event.data);
-        }
-      };
+      // stop microphone access
+      stream.getTracks().forEach((track) => track.stop());
+    };
 
-      mediaRecorder.current.onstop = () => {
-        const audioBlob = new Blob(audioChunks.current, {
-          type: "audio/webm",
-        });
+    mediaRecorder.current.start();
+    onRecordingChange?.(true);
+    setRecording(true);
 
-        const url = URL.createObjectURL(audioBlob);
-        setAudioURL(url);
+    sampleAudioPeaks();
+  }
 
-        // stop microphone access
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.current.start();
-      onRecordingChange?.(true);
+  function stopRecording() {
+    if (mediaRecorder.current) {
+      mediaRecorder.current.stop();
+      onRecordingChange?.(false);
+      setRecording(false);
     }
+  }
 
-    function stopRecording() {
-      if (mediaRecorder.current) {
-        mediaRecorder.current.stop();
-        onRecordingChange?.(false);
-      }
-    }
+  return (
+    <div>
+      <h2>Audio Recorder</h2>
 
-    useImperativeHandle(ref, () => ({
-      start: startRecording,
-      stop: stopRecording,
-    }));
+      <button
+        className={`text-black outline rounded-md p-4 disabled:opacity-50 ${
+          recording
+            ? "bg-red-500 hover:bg-red-300"
+            : "bg-green-500 hover:bg-green-300"
+        }`}
+        onClick={recording ? stopRecording : startRecording}
+      >
+        {recording ? "Stop" : "Start"}
+      </button>
 
-    return (
-      <div>
-        <h2>Audio Recorder</h2>
+      <br />
 
-        {audioURL && (
-          <div>
-            <h3>Your recording:</h3>
+      <button
+        className="text-black outline rounded-md p-4 mt-2 bg-blue-500 hover:bg-blue-300"
+        onClick={() => setShowAnalytics(true)}
+      >
+        Show Analytics
+      </button>
 
-            <audio controls src={audioURL} />
+      {audioURL && (
+        <div>
+          <h3>Your recording:</h3>
 
-            <br />
+          <audio controls src={audioURL} />
 
-            <a href={audioURL} download="recording.webm">
-              Download
-            </a>
-          </div>
-        )}
-      </div>
-    );
-  },
-);
+          <br />
+
+          <a href={audioURL} download="recording.webm">
+            Download
+          </a>
+        </div>
+      )}
+
+      <AnalyticsModel
+        open={showAnalytics}
+        peaks={peaks}
+        intervalMs={SAMPLE_INTERVAL_MS}
+        onClose={() => setShowAnalytics(false)}
+      />
+    </div>
+  );
+}
 
 export default AudioRecorder;
