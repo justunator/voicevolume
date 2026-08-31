@@ -99,12 +99,21 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       <button
         className={`text-black outline rounded-md p-4 disabled:opacity-50 ${
           recording
-            ? "bg-red-500 hover:bg-red-300 disabled:hover:bg-red-500"
-            : "bg-green-500 hover:bg-green-300 disabled:hover:bg-green-500"
+            ? "bg-red-500 hover:bg-red-300"
+            : "bg-green-500 hover:bg-green-300"
         }`}
         onClick={recording ? stopRecording : startRecording}
       >
         {recording ? "Stop" : "Start"}
+      </button>
+
+      <br />
+
+      <button
+        className="text-black outline rounded-md p-4 mt-2 bg-blue-500 hover:bg-blue-300"
+        onClick={() => setShowAnalytics(true)}
+      >
+        Show Analytics
       </button>
 
       {audioURL && (
