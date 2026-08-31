@@ -1,8 +1,12 @@
 import { useRef, useState } from "react";
+import LiveAnalysis from "./LiveAnalysis";
 
 interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
 }
+
+const sampleIntervalMS = 50;
+const updateIntervalMS = 5000;
 
 function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -16,12 +20,13 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
 
-  const volumeTimer = useRef<number | null>(null);
   const dbReadings = useRef<number[]>([]);
+  const [averageDbfs, setAverageDbfs] = useState<number | null>(null);
   const lastAverageTime = useRef<number | null>(null);
 
   function updateVolume() {
     console.log("Updating volume...");
+    const now = Date.now();
     const analyserNode = analyser.current;
     const data = volumeData.current;
     if (!analyserNode || !data) {
@@ -44,28 +49,26 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     const dbfs = 20 * Math.log10(Math.max(rms, 0.00001));
 
     dbReadings.current.push(dbfs);
-
-    const now = Date.now();
-    // Calculate the average dBFS over the last 5 seconds
     if (
+      // If its been 5 seconds do average the data and clear dbReadings
       lastAverageTime.current === null ||
-      now - lastAverageTime.current >= 5000
+      Date.now() - lastAverageTime.current >= updateIntervalMS
     ) {
       const readings = dbReadings.current;
-
       if (readings.length > 0) {
-        const averageDbfs =
-          readings.reduce((total, value) => total + value, 0) / readings.length;
-
-        console.log(`5-second average: ${averageDbfs.toFixed(1)} dBFS`);
+        setAverageDbfs(
+          readings.reduce((total, value) => total + value, 0) / readings.length,
+        );
+        if (averageDbfs != null) {
+          console.log(`5-second average: ${averageDbfs.toFixed(1)} dBFS`);
+        }
       }
 
       dbReadings.current = [];
       lastAverageTime.current = now;
     }
-
     if (mediaRecorder.current?.state === "recording") {
-      volumeTimer.current = window.setTimeout(updateVolume, 50);
+      setTimeout(updateVolume, sampleIntervalMS);
     }
   }
 
@@ -122,36 +125,46 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       mediaRecorder.current.stop();
       onRecordingChange?.(false);
       setRecording(false);
+      setAverageDbfs(null);
       console.log("Recording stopped.");
     }
   }
 
   return (
     <div>
-      <h2>Audio Recorder</h2>
-      <button
-        className={`text-black outline rounded-md p-4 disabled:opacity-50 ${
-          recording
-            ? "bg-red-500 hover:bg-red-300 disabled:hover:bg-red-500"
-            : "bg-green-500 hover:bg-green-300 disabled:hover:bg-green-500"
-        }`}
-        onClick={recording ? stopRecording : startRecording}
-      >
-        {recording ? "Stop" : "Start"}
-      </button>
-      {audioURL && (
-        <div>
-          <h3>Your recording:</h3>
+      <div>
+        {averageDbfs === null ? (
+          <LiveAnalysis AverageDbfs={1} />
+        ) : (
+          <LiveAnalysis AverageDbfs={averageDbfs} />
+        )}
+      </div>
+      <div>
+        <h2>Audio Recorder</h2>
+        <button
+          className={`text-black outline rounded-md p-4 disabled:opacity-50 ${
+            recording
+              ? "bg-red-500 hover:bg-red-300 disabled:hover:bg-red-500"
+              : "bg-green-500 hover:bg-green-300 disabled:hover:bg-green-500"
+          }`}
+          onClick={recording ? stopRecording : startRecording}
+        >
+          {recording ? "Stop" : "Start"}
+        </button>
+      </div>
+      <div>
+        {audioURL && (
+          <div>
+            <h3>Your recording:</h3>
 
-          <audio controls src={audioURL} />
-
-          <br />
-
-          <a href={audioURL} download='recording.webm'>
-            Download
-          </a>
-        </div>
-      )}
+            <audio className='inline' controls src={audioURL} />
+            <br />
+            <a href={audioURL} download='recording.webm'>
+              Download
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
