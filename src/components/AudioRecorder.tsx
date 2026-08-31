@@ -1,15 +1,45 @@
 import { useRef, useState } from "react";
+import AnalyticsModel from "./AnalyticsModel.tsx";
 
 interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
 }
 
+const SAMPLE_INTERVAL_MS = 500;
+
 function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
 
+  const audioContext = useRef<AudioContext | null>(null);
+  const analyserNode = useRef<AnalyserNode | null>(null);
+  const audioArray = useRef<number[]>([]);
+
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [peaks, setPeaks] = useState<number[]>([]);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  function sampleAudioPeaks() {
+    if (analyserNode.current === null) {
+      return;
+    }
+
+    const uInt8Array = new Uint8Array(analyserNode.current.fftSize);
+
+    analyserNode.current.getByteTimeDomainData(uInt8Array);
+
+    const maxDistance = uInt8Array.reduce((max, sample) => {
+      const distance = Math.abs(sample - 128);
+      return Math.max(max, distance);
+    }, 0);
+
+    audioArray.current.push(maxDistance / 128);
+
+    if (mediaRecorder.current?.state === "recording") {
+      setTimeout(sampleAudioPeaks, SAMPLE_INTERVAL_MS);
+    }
+  }
 
   async function startRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -17,6 +47,12 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     });
 
     mediaRecorder.current = new MediaRecorder(stream);
+
+    audioContext.current = new AudioContext();
+    const source = audioContext.current.createMediaStreamSource(stream);
+    analyserNode.current = audioContext.current.createAnalyser();
+    source.connect(analyserNode.current);
+    audioArray.current = [];
 
     audioChunks.current = [];
 
@@ -34,6 +70,9 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       const url = URL.createObjectURL(audioBlob);
       setAudioURL(url);
 
+      setPeaks(audioArray.current);
+      setShowAnalytics(true);
+
       // stop microphone access
       stream.getTracks().forEach((track) => track.stop());
     };
@@ -41,6 +80,8 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     mediaRecorder.current.start();
     onRecordingChange?.(true);
     setRecording(true);
+
+    sampleAudioPeaks();
   }
 
   function stopRecording() {
@@ -79,6 +120,13 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
           </a>
         </div>
       )}
+
+      <AnalyticsModel
+        open={showAnalytics}
+        peaks={peaks}
+        intervalMs={SAMPLE_INTERVAL_MS}
+        onClose={() => setShowAnalytics(false)}
+      />
     </div>
   );
 }
