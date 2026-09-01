@@ -6,7 +6,7 @@ interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
 }
 
-const sampleIntervalMS = 50;
+const LiveSampleIntervalMS = 50;
 const updateIntervalMS = 5000;
 const SAMPLE_INTERVAL_MS = 500;
 
@@ -23,6 +23,10 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const [recording, setRecording] = useState(false);
   const [peaks, setPeaks] = useState<number[]>([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
+
+  const dbReadings = useRef<number[]>([]);
+  const [averageDbfs, setAverageDbfs] = useState<number | null>(null);
+  const lastAverageTime = useRef<number | null>(null);
 
   function sampleAudioPeaks() {
     if (analyserNode.current === null) {
@@ -45,21 +49,17 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     }
   }
 
-  const dbReadings = useRef<number[]>([]);
-  const [averageDbfs, setAverageDbfs] = useState<number | null>(null);
-  const lastAverageTime = useRef<number | null>(null);
-
   function updateVolume() {
     console.log("Updating volume...");
     const now = Date.now();
-    const analyserNode = analyser.current;
+    const analyser = analyserNode.current;
     const data = volumeData.current;
-    if (!analyserNode || !data) {
-      console.log("data or analyserNode is null");
+    if (!analyser || !data) {
+      console.log("data or analyser is null");
       return;
     }
 
-    analyserNode.getFloatTimeDomainData(data);
+    analyser.getFloatTimeDomainData(data);
 
     let sum = 0;
 
@@ -77,7 +77,7 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     if (
       // If its been 5 seconds do average the data and clear dbReadings
       lastAverageTime.current === null ||
-      Date.now() - lastAverageTime.current >= updateIntervalMS
+      now - lastAverageTime.current >= updateIntervalMS
     ) {
       const readings = dbReadings.current;
       if (readings.length > 0) {
@@ -88,12 +88,12 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
           console.log(`5-second average: ${averageDbfs.toFixed(1)} dBFS`);
         }
       }
-
+      console.log(dbReadings.current);
       dbReadings.current = [];
       lastAverageTime.current = now;
     }
     if (mediaRecorder.current?.state === "recording") {
-      setTimeout(updateVolume, sampleIntervalMS);
+      setTimeout(updateVolume, LiveSampleIntervalMS);
     }
   }
 
@@ -103,13 +103,14 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     });
 
     mediaRecorder.current = new MediaRecorder(stream);
-
     audioContext.current = new AudioContext();
+
     const source = audioContext.current.createMediaStreamSource(stream);
     analyserNode.current = audioContext.current.createAnalyser();
     source.connect(analyserNode.current);
-    audioArray.current = [];
+    volumeData.current = new Float32Array(analyserNode.current.fftSize);
 
+    audioArray.current = [];
     audioChunks.current = [];
 
     mediaRecorder.current.ondataavailable = (event) => {
@@ -132,19 +133,6 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       // stop microphone access
       stream.getTracks().forEach((track) => track.stop());
     };
-    const context = new AudioContext();
-    await context.resume();
-
-    const analyserNode = context.createAnalyser();
-    analyserNode.fftSize = 2048;
-
-    const source = context.createMediaStreamSource(stream);
-    source.connect(analyserNode);
-
-    audioContext.current = context;
-    analyser.current = analyserNode;
-
-    volumeData.current = new Float32Array(analyserNode.fftSize);
 
     console.log("Starting recording...");
     mediaRecorder.current.start();
@@ -189,7 +177,7 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       <br />
 
       <button
-        className="text-black outline rounded-md p-4 mt-2 bg-blue-500 hover:bg-blue-300"
+        className='text-black outline rounded-md p-4 mt-2 bg-blue-500 hover:bg-blue-300'
         onClick={() => setShowAnalytics(true)}
       >
         Show Analytics
@@ -199,11 +187,11 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
         <div>
           <h3>Your recording:</h3>
 
-          <audio controls src={audioURL} />
+          <audio className='inline' controls src={audioURL} />
 
           <br />
 
-          <a classname="inline" href={audioURL} download="recording.webm">
+          <a href={audioURL} download='recording.webm'>
             Download
           </a>
         </div>
