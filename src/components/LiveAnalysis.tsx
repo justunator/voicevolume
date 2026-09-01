@@ -1,5 +1,3 @@
-import { useRef, useState, useEffect } from "react";
-
 interface LiveAnalysisProps {
   AverageDbfs: number;
 }
