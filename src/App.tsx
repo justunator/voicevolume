@@ -1,14 +1,26 @@
 import AudioRecorder from "./components/AudioRecorder.tsx";
+import SettingsButton from "./components/SettingsButton.tsx";
+import { useState } from "react";
 
 function App() {
+  const [LowVol, setLowVol] = useState<number>(-50);
+  const [MedVol, setMedVol] = useState<number>(-30);
   return (
     <div className='min-h-screen p-4 flex justify-between flex-col gap-4'>
       <label className='text-4xl'>VoiceVolume</label>
 
       <div className='flex justify-center gap-4'>
-        <AudioRecorder />
+        <AudioRecorder lowVol={LowVol} midVol={MedVol} />
       </div>
-
+      <SettingsButton
+        values={{ lowVol: LowVol, medVol: MedVol }}
+        onLowVolChange={(newLowVol) => {
+          setLowVol(newLowVol);
+        }}
+        onMedVolChange={(newMedVol) => {
+          setMedVol(newMedVol);
+        }}
+      />
       <label className='flex justify-center gap-1'>
         <span>Built by</span>
         <a

@@ -4,13 +4,19 @@ import AnalyticsModel from "./AnalyticsModel.tsx";
 
 interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
+  lowVol: number;
+  midVol: number;
 }
 
 const LiveSampleIntervalMS = 50;
 const updateIntervalMS = 5000;
 const SAMPLE_INTERVAL_MS = 500;
 
-function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
+function AudioRecorder({
+  onRecordingChange,
+  lowVol,
+  midVol,
+}: AudioRecorderProps) {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
 
@@ -156,9 +162,13 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     <div>
       <div>
         {averageDbfs === null ? (
-          <LiveAnalysis AverageDbfs={1} />
+          <LiveAnalysis AverageDbfs={1} lowVol={lowVol} midVol={midVol} />
         ) : (
-          <LiveAnalysis AverageDbfs={averageDbfs} />
+          <LiveAnalysis
+            AverageDbfs={averageDbfs}
+            lowVol={lowVol}
+            midVol={midVol}
+          />
         )}
       </div>
       <h2>Audio Recorder</h2>
