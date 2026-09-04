@@ -7,7 +7,7 @@ interface LiveAnalysisProps {
 function LiveAnalysis({ AverageDbfs, lowVol, midVol }: LiveAnalysisProps) {
   return (
     <div className='justify-center gap-4 flex flex-col items-center'>
-      <span className='text-2xl font-bold text-white'>
+      <span className='text-2xl font-bold'>
         Average Volume: {AverageDbfs === 1 ? "N/A" : AverageDbfs.toFixed(2)}{" "}
         dBFS
       </span>
