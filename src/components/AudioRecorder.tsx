@@ -10,6 +10,12 @@ interface AudioRecorderProps {
 const LiveSampleIntervalMS = 50;
 const updateIntervalMS = 5000;
 const SAMPLE_INTERVAL_MS = 500;
+const SILENCE_THRESHOLD = 0.02;
+
+function trimLeadingSilence(values: number[], threshold: number): number[] {
+  const firstLoudIndex = values.findIndex((value) => value > threshold);
+  return firstLoudIndex === -1 ? values : values.slice(firstLoudIndex);
+}
 
 function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -115,7 +121,7 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     audioArray.current = [];
 
     mediaRecorder.current.onstop = () => {
-      setPeaks(audioArray.current);
+      setPeaks(trimLeadingSilence(audioArray.current, SILENCE_THRESHOLD));
       setShowAnalytics(true);
 
       // stop microphone access
