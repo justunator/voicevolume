@@ -1,31 +1,30 @@
 import { useRef, useState } from "react";
 import LiveAnalysis from "./LiveAnalysis";
 import AnalyticsModel from "./AnalyticsModel.tsx";
+import SettingsButton from "./SettingsButton.tsx";
 
 interface AudioRecorderProps {
   onRecordingChange?: (recording: boolean) => void;
-  lowVol: number;
-  midVol: number;
 }
 
 const LiveSampleIntervalMS = 50;
 const updateIntervalMS = 5000;
 const SAMPLE_INTERVAL_MS = 500;
+const SILENCE_THRESHOLD = 0.02;
 
-function AudioRecorder({
-  onRecordingChange,
-  lowVol,
-  midVol,
-}: AudioRecorderProps) {
+function trimLeadingSilence(values: number[], threshold: number): number[] {
+  const firstLoudIndex = values.findIndex((value) => value > threshold);
+  return firstLoudIndex === -1 ? values : values.slice(firstLoudIndex);
+}
+
+function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
 
   const audioContext = useRef<AudioContext | null>(null);
   const volumeData = useRef<Float32Array<ArrayBuffer> | null>(null);
   const analyserNode = useRef<AnalyserNode | null>(null);
   const audioArray = useRef<number[]>([]);
 
-  const [audioURL, setAudioURL] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [peaks, setPeaks] = useState<number[]>([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -33,6 +32,9 @@ function AudioRecorder({
   const dbReadings = useRef<number[]>([]);
   const [averageDbfs, setAverageDbfs] = useState<number | null>(null);
   const lastAverageTime = useRef<number | null>(null);
+
+  const [LowVol, setLowVol] = useState<number>(-50);
+  const [MedVol, setMedVol] = useState<number>(-30);
 
   function sampleAudioPeaks() {
     if (analyserNode.current === null) {
@@ -117,23 +119,9 @@ function AudioRecorder({
     volumeData.current = new Float32Array(analyserNode.current.fftSize);
 
     audioArray.current = [];
-    audioChunks.current = [];
-
-    mediaRecorder.current.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.current.push(event.data);
-      }
-    };
 
     mediaRecorder.current.onstop = () => {
-      const audioBlob = new Blob(audioChunks.current, {
-        type: "audio/webm",
-      });
-
-      const url = URL.createObjectURL(audioBlob);
-      setAudioURL(url);
-
-      setPeaks(audioArray.current);
+      setPeaks(trimLeadingSilence(audioArray.current, SILENCE_THRESHOLD));
       setShowAnalytics(true);
 
       // stop microphone access
@@ -162,50 +150,47 @@ function AudioRecorder({
     <div>
       <div>
         {averageDbfs === null ? (
-          <LiveAnalysis AverageDbfs={1} lowVol={lowVol} midVol={midVol} />
+          <LiveAnalysis AverageDbfs={1} lowVol={LowVol} midVol={MedVol} />
         ) : (
           <LiveAnalysis
             AverageDbfs={averageDbfs}
-            lowVol={lowVol}
-            midVol={midVol}
+            lowVol={LowVol}
+            midVol={MedVol}
           />
         )}
       </div>
-      <h2>Audio Recorder</h2>
 
-      <button
-        className={`text-black outline rounded-md p-4 disabled:opacity-50 ${
-          recording
-            ? "bg-red-500 hover:bg-red-300"
-            : "bg-green-500 hover:bg-green-300"
-        }`}
-        onClick={recording ? stopRecording : startRecording}
-      >
-        {recording ? "Stop" : "Start"}
-      </button>
+      <div className="grid grid-cols-3 items-center pt-4">
+        <button
+          className={`justify-self-start text-black outline rounded-md p-3 disabled:opacity-50 ${
+            recording
+              ? "bg-red-500 hover:bg-red-300"
+              : "bg-green-500 hover:bg-green-300"
+          }`}
+          onClick={recording ? stopRecording : startRecording}
+        >
+          {recording ? "Stop" : "Start"}
+        </button>
 
-      <br />
-
-      <button
-        className='text-black outline rounded-md p-4 mt-2 bg-blue-500 hover:bg-blue-300'
-        onClick={() => setShowAnalytics(true)}
-      >
-        Show Analytics
-      </button>
-
-      {audioURL && (
-        <div>
-          <h3>Your recording:</h3>
-
-          <audio className='inline' controls src={audioURL} />
-
-          <br />
-
-          <a href={audioURL} download='recording.webm'>
-            Download
-          </a>
+        <div className="flex justify-center">
+          <SettingsButton
+            values={{ lowVol: LowVol, medVol: MedVol }}
+            onLowVolChange={(newLowVol) => {
+              setLowVol(newLowVol);
+            }}
+            onMedVolChange={(newMedVol) => {
+              setMedVol(newMedVol);
+            }}
+          />
         </div>
-      )}
+
+        <button
+          className="justify-self-end text-black outline rounded-md p-3 bg-blue-500 hover:bg-blue-300"
+          onClick={() => setShowAnalytics(true)}
+        >
+          Analytics
+        </button>
+      </div>
 
       <AnalyticsModel
         open={showAnalytics}
