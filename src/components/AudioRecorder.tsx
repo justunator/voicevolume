@@ -8,7 +8,7 @@ interface AudioRecorderProps {
 }
 
 const LiveSampleIntervalMS = 50;
-const updateIntervalMS = 5000;
+
 const SAMPLE_INTERVAL_MS = 500;
 const SILENCE_THRESHOLD = 0.02;
 
@@ -33,8 +33,11 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   const [averageDbfs, setAverageDbfs] = useState<number | null>(null);
   const lastAverageTime = useRef<number | null>(null);
 
-  const [LowVol, setLowVol] = useState<number>(-50);
-  const [MedVol, setMedVol] = useState<number>(-30);
+  const [settings, setSettings] = useState({
+    lowVol: -50,
+    medVol: -30,
+    updateIntervalMS: 5000,
+  });
 
   function sampleAudioPeaks() {
     if (analyserNode.current === null) {
@@ -85,7 +88,7 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     if (
       // If its been 5 seconds do average the data and clear dbReadings
       lastAverageTime.current === null ||
-      now - lastAverageTime.current >= updateIntervalMS
+      now - lastAverageTime.current >= settings.updateIntervalMS
     ) {
       const readings = dbReadings.current;
       if (readings.length > 0) {
@@ -150,17 +153,21 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
     <div>
       <div>
         {averageDbfs === null ? (
-          <LiveAnalysis AverageDbfs={1} lowVol={LowVol} midVol={MedVol} />
+          <LiveAnalysis
+            AverageDbfs={1}
+            lowVol={settings.lowVol}
+            midVol={settings.medVol}
+          />
         ) : (
           <LiveAnalysis
             AverageDbfs={averageDbfs}
-            lowVol={LowVol}
-            midVol={MedVol}
+            lowVol={settings.lowVol}
+            midVol={settings.medVol}
           />
         )}
       </div>
 
-      <div className="grid grid-cols-3 items-center pt-4">
+      <div className='grid grid-cols-3 items-center pt-4'>
         <button
           className={`justify-self-start text-black outline rounded-md p-3 disabled:opacity-50 ${
             recording
@@ -172,20 +179,36 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
           {recording ? "Stop" : "Start"}
         </button>
 
-        <div className="flex justify-center">
+        <div className='flex justify-center'>
           <SettingsButton
-            values={{ lowVol: LowVol, medVol: MedVol }}
+            values={{
+              lowVol: settings.lowVol,
+              medVol: settings.medVol,
+              intervalMS: settings.updateIntervalMS,
+            }}
             onLowVolChange={(newLowVol) => {
-              setLowVol(newLowVol);
+              setSettings((previous) => ({
+                ...previous,
+                lowVol: newLowVol,
+              }));
             }}
             onMedVolChange={(newMedVol) => {
-              setMedVol(newMedVol);
+              setSettings((previous) => ({
+                ...previous,
+                medVol: newMedVol,
+              }));
+            }}
+            onIntervalChange={(newInterval) => {
+              setSettings((previous) => ({
+                ...previous,
+                updateIntervalMS: newInterval,
+              }));
             }}
           />
         </div>
 
         <button
-          className="justify-self-end text-black outline rounded-md p-3 bg-blue-500 hover:bg-blue-300"
+          className='justify-self-end text-black outline rounded-md p-3 bg-blue-500 hover:bg-blue-300'
           onClick={() => setShowAnalytics(true)}
         >
           Analytics
