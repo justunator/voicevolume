@@ -61,7 +61,6 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   }
 
   function updateVolume() {
-    console.log("Updating volume...");
     const now = Date.now();
     const analyser = analyserNode.current;
     const data = volumeData.current;
