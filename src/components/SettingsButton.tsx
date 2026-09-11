@@ -15,6 +15,11 @@ export default function SettingsButton({
 }: SettingsButtonProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  const [tempValues, setTempValues] = useState({
+    tempLowVol: values.lowVol,
+    tempMedVol: values.medVol,
+    tempIntervalMS: values.intervalMS,
+  });
   const [tipsVisible, setTipsVisible] = useState({
     tip1: false,
     tip2: false,
@@ -22,9 +27,37 @@ export default function SettingsButton({
   });
 
   const handleReset = () => {
-    onLowVolChange(-50);
-    onMedVolChange(-30);
-    onIntervalChange(5000);
+    setTempValues({
+      tempLowVol: -50,
+      tempMedVol: -30,
+      tempIntervalMS: 5000,
+    });
+  };
+
+  const changeDetection = () => {
+    return (
+      tempValues.tempLowVol !== values.lowVol ||
+      tempValues.tempMedVol !== values.medVol ||
+      tempValues.tempIntervalMS !== values.intervalMS
+    );
+  };
+
+  const handleSave = () => {
+    if (changeDetection()) {
+      onLowVolChange(tempValues.tempLowVol);
+      onMedVolChange(tempValues.tempMedVol);
+      onIntervalChange(tempValues.tempIntervalMS);
+      alert("Settings saved!");
+    }
+    setIsSettingsOpen(false);
+  };
+
+  const handleDiscard = () => {
+    setTempValues({
+      tempLowVol: values.lowVol,
+      tempMedVol: values.medVol,
+      tempIntervalMS: values.intervalMS,
+    });
     setIsSettingsOpen(false);
   };
 
@@ -61,10 +94,7 @@ export default function SettingsButton({
       </button>
 
       {isSettingsOpen && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
-          onClick={() => setIsSettingsOpen(false)}
-        >
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
           <aside
             id='settings-panel'
             role='dialog'
@@ -78,11 +108,13 @@ export default function SettingsButton({
 
               <button
                 type='button'
-                onClick={() => setIsSettingsOpen(false)}
+                onClick={() => {
+                  handleDiscard();
+                }}
                 aria-label='Close settings'
-                className='rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                className='rounded-lg p-2 text-gray-500 hover:bg-red-400 hover:text-black'
               >
-                ×
+                X
               </button>
             </div>
 
@@ -93,12 +125,13 @@ export default function SettingsButton({
                   type='number'
                   placeholder='-100 to 0'
                   defaultValue={values.lowVol}
+                  value={tempValues.tempLowVol}
                   onChange={(e) => {
                     if (!e.target.value) return; // if entry is empty, do nothing
                     const value = Number(e.target.value);
 
                     if (value < values.medVol && value >= -100 && value <= 0) {
-                      onLowVolChange(value);
+                      setTempValues({ ...tempValues, tempLowVol: value });
                     }
                   }}
                 />
@@ -123,12 +156,13 @@ export default function SettingsButton({
                   type='number'
                   placeholder='-100 to 0'
                   defaultValue={values.medVol}
+                  value={tempValues.tempMedVol}
                   onChange={(e) => {
                     if (!e.target.value) return; // if entry is empty, do nothing
                     const value = Number(e.target.value);
 
                     if (value > values.lowVol && value >= -100 && value <= 0) {
-                      onMedVolChange(value);
+                      setTempValues({ ...tempValues, tempMedVol: value });
                     }
                   }}
                 />
@@ -153,12 +187,13 @@ export default function SettingsButton({
                   type='number'
                   placeholder='Milliseconds'
                   defaultValue={values.intervalMS}
+                  value={tempValues.tempIntervalMS}
                   onChange={(e) => {
                     if (!e.target.value) return; // if entry is empty, do nothing
                     const value = Number(e.target.value);
 
                     if (value > 0) {
-                      onIntervalChange(value);
+                      setTempValues({ ...tempValues, tempIntervalMS: value });
                     }
                   }}
                 />
@@ -177,12 +212,20 @@ export default function SettingsButton({
                   </p>
                 ) : null}
               </label>
-              <button
-                className='outline rounded-md p-2 text-black bg-blue-500 hover:bg-blue-300'
-                onClick={handleReset}
-              >
-                Reset to Defaults
-              </button>
+              <div className='flex justify-center gap-2'>
+                <button
+                  className='outline rounded-md p-2 text-black bg-gray-100 hover:bg-blue-300'
+                  onClick={handleReset}
+                >
+                  Reset to Defaults
+                </button>
+                <button
+                  className='outline rounded-md p-2 text-black bg-gray-100 hover:bg-green-300'
+                  onClick={handleSave}
+                >
+                  Save & Close
+                </button>
+              </div>
             </div>
           </aside>
         </div>

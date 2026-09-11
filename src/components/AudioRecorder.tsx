@@ -61,12 +61,10 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
   }
 
   function updateVolume() {
-    console.log("Updating volume...");
     const now = Date.now();
     const analyser = analyserNode.current;
     const data = volumeData.current;
     if (!analyser || !data) {
-      console.log("data or analyser is null");
       return;
     }
 
@@ -95,11 +93,7 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
         setAverageDbfs(
           readings.reduce((total, value) => total + value, 0) / readings.length,
         );
-        if (averageDbfs != null) {
-          console.log(`5-second average: ${averageDbfs.toFixed(1)} dBFS`);
-        }
       }
-      console.log(dbReadings.current);
       dbReadings.current = [];
       lastAverageTime.current = now;
     }
@@ -131,7 +125,6 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       stream.getTracks().forEach((track) => track.stop());
     };
 
-    console.log("Starting recording...");
     mediaRecorder.current.start();
     onRecordingChange?.(true);
     setRecording(true);
@@ -145,7 +138,6 @@ function AudioRecorder({ onRecordingChange }: AudioRecorderProps) {
       onRecordingChange?.(false);
       setRecording(false);
       setAverageDbfs(null);
-      console.log("Recording stopped.");
     }
   }
 
