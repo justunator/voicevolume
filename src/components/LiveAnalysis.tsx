@@ -1,25 +1,24 @@
+import { ZONE_BG, volumeZone } from "../lib/volume.ts";
+
 interface LiveAnalysisProps {
-  AverageDbfs: number;
-  lowVol: number;
-  midVol: number;
+  currentDb: number | null;
+  lowDb: number;
+  medDb: number;
 }
 
-function LiveAnalysis({ AverageDbfs, lowVol, midVol }: LiveAnalysisProps) {
+function LiveAnalysis({ currentDb, lowDb, medDb }: LiveAnalysisProps) {
+  const zoneClass =
+    currentDb === null ? "" : ZONE_BG[volumeZone(currentDb, lowDb, medDb)];
+
   return (
-    <div className='justify-center gap-4 flex flex-col items-center'>
-      <span className='text-2xl font-bold'>
-        Average Volume: {AverageDbfs === 1 ? "N/A" : AverageDbfs.toFixed(2)}{" "}
-        dBFS
+    <div className="justify-center gap-4 flex flex-col items-center">
+      <span className="text-2xl font-bold">
+        Volume: {currentDb === null ? "N/A" : currentDb.toFixed(0)} dB
       </span>
-      {AverageDbfs === 1 ? (
-        <div className='box-border size-128 rounded-lg border-4 p-4 transition-colors duration-500' />
-      ) : AverageDbfs < lowVol ? (
-        <div className='box-border size-128 rounded-lg border-4 bg-green-400 p-4 transition-colors duration-500' />
-      ) : AverageDbfs < midVol ? (
-        <div className='box-border size-128 rounded-lg border-4 bg-yellow-400 p-4 transition-colors duration-500' />
-      ) : (
-        <div className='box-border size-128 rounded-lg border-4 bg-red-400 p-4 transition-colors duration-500' />
-      )}
+
+      <div
+        className={`box-border size-128 rounded-lg border-4 p-4 transition-colors duration-500 ${zoneClass}`}
+      />
     </div>
   );
 }
