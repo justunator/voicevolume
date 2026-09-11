@@ -128,6 +128,7 @@ export default function SettingsButton({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>(() => toDrafts(values));
   const [lastValues, setLastValues] = useState(values);
+  const [openedWith, setOpenedWith] = useState(values);
 
   if (values !== lastValues) {
     setLastValues(values);
@@ -153,6 +154,18 @@ export default function SettingsButton({
       setDrafts((previous) => ({ ...previous, [field]: raw }));
   }
 
+  function handleOpen() {
+    setOpenedWith(values);
+    setIsSettingsOpen(true);
+  }
+
+  function handleClose(save: boolean) {
+    if (!save && openedWith !== values) {
+      onChange(openedWith);
+    }
+    setIsSettingsOpen(false);
+  }
+
   return (
     <div>
       <button
@@ -160,7 +173,7 @@ export default function SettingsButton({
         aria-label={isSettingsOpen ? "Close settings" : "Open settings"}
         aria-expanded={isSettingsOpen}
         aria-controls="settings-panel"
-        onClick={() => setIsSettingsOpen(true)}
+        onClick={handleOpen}
         className="inline-flex items-center justify-center rounded-lg p-2 transition hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         <svg
@@ -186,16 +199,12 @@ export default function SettingsButton({
       </button>
 
       {isSettingsOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setIsSettingsOpen(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <aside
             id="settings-panel"
             role="dialog"
             aria-modal="true"
             aria-label="Settings"
-            onClick={(event) => event.stopPropagation()}
             className="w-full max-w-md rounded-xl bg-gray-900 p-6 shadow-xl"
           >
             <div className="flex items-center justify-between">
@@ -203,9 +212,9 @@ export default function SettingsButton({
 
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(false)}
-                aria-label="Close settings"
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                onClick={() => handleClose(false)}
+                aria-label="Discard changes and close settings"
+                className="rounded-lg p-2 text-gray-500 hover:bg-red-400 hover:text-black"
               >
                 ×
               </button>
@@ -244,13 +253,23 @@ export default function SettingsButton({
                 onCommit={() => commit("calibrationDb")}
               />
 
-              <button
-                type="button"
-                className="outline rounded-md p-2 text-black bg-blue-500 hover:bg-blue-300"
-                onClick={() => onChange(DEFAULT_SETTINGS)}
-              >
-                Reset to Defaults
-              </button>
+              <div className="flex justify-center gap-2">
+                <button
+                  type="button"
+                  className="outline rounded-md p-2 text-black bg-gray-100 hover:bg-blue-300"
+                  onClick={() => onChange(DEFAULT_SETTINGS)}
+                >
+                  Reset to Defaults
+                </button>
+
+                <button
+                  type="button"
+                  className="outline rounded-md p-2 text-black bg-gray-100 hover:bg-green-300"
+                  onClick={() => handleClose(true)}
+                >
+                  Save & Close
+                </button>
+              </div>
             </div>
           </aside>
         </div>
